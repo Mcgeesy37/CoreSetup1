@@ -655,3 +655,13 @@ img{max-width:100%; display:block}
   .orb, .orb-ring{animation:none !important}
   [data-reveal]{transition:none}
 }
+@keyframes orbRotate{
+from{transform:rotate(0deg);}
+to{transform:rotate(360deg);}
+}
+
+.orb{
+animation:
+floatOrb 10s ease-in-out infinite,
+orbRotate 60s linear infinite;
+}
