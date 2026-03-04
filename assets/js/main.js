@@ -63,23 +63,131 @@
 
   sections.forEach(s => navIO.observe(s));
 
-  // Parallax orb (lightweight)
-  const orb = document.getElementById("orb");
-  const orbWrap = document.getElementById("orbWrap");
-  let lastY = 0;
+ // =========================
+// ORB: Drag-to-rotate + Inertia (iPad & Desktop)
+// =========================
+const orb = document.getElementById("orb");
+const orbWrap = document.getElementById("orbWrap");
 
-  const parallax = () => {
-    const y = window.scrollY;
-    const dy = (y - lastY);
-    lastY = y;
+if (orb && orbWrap) {
+  let isDown = false;
+  let lastX = 0, lastY = 0;
 
-    if (orb) {
-      // Subtle translate with scroll
-      const t = Math.min(22, y * 0.06);
-      orb.style.transform = `translateY(${-t}px) rotate(${t * 0.45}deg)`;
+  // Rotation state
+  let rotY = 10;
+  let rotX = -6;
+
+  // Velocity for inertia
+  let vY = 0;
+  let vX = 0;
+
+  let rafId = null;
+
+  const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+
+  const apply = () => {
+    // reine Rotation (Float-Animation läuft separat; beim Drag pausieren wir sie)
+    orb.style.transform = `rotateY(${rotY}deg) rotateX(${rotX}deg)`;
+  };
+
+  const stopInertia = () => {
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = null;
+  };
+
+  const startInertia = () => {
+    stopInertia();
+
+    const friction = 0.92;   // 0.88..0.96 (mehr = länger drehen)
+    const minVel = 0.02;     // Stop threshold
+
+    const tick = () => {
+      // velocity abklingen
+      vY *= friction;
+      vX *= friction;
+
+      // anwenden
+      rotY += vY;
+      rotX += vX;
+      rotX = clamp(rotX, -35, 35);
+
+      apply();
+
+      if (Math.abs(vY) > minVel || Math.abs(vX) > minVel) {
+        rafId = requestAnimationFrame(tick);
+      } else {
+        rafId = null;
+        // Float wieder laufen lassen, wenn wir wirklich stehen
+        orb.style.animationPlayState = "running";
+      }
+    };
+
+    // Float pausieren während inertia, damit es nicht “gegen” die Rotation arbeitet
+    orb.style.animationPlayState = "paused";
+    rafId = requestAnimationFrame(tick);
+  };
+
+  const onDown = (e) => {
+    isDown = true;
+    stopInertia();
+
+    // Pointer capture (falls verfügbar)
+    orbWrap.setPointerCapture?.(e.pointerId);
+
+    lastX = e.clientX;
+    lastY = e.clientY;
+
+    // Float pausieren beim direkten Drag
+    orb.style.animationPlayState = "paused";
+
+    e.preventDefault();
+  };
+
+  const onMove = (e) => {
+    if (!isDown) return;
+
+    const dx = e.clientX - lastX;
+    const dy = e.clientY - lastY;
+
+    lastX = e.clientX;
+    lastY = e.clientY;
+
+    // Sensitivity
+    const s = 0.35;
+
+    // Update rotation
+    rotY += dx * s;
+    rotX -= dy * s;
+    rotX = clamp(rotX, -35, 35);
+
+    // Update velocity (für inertia)
+    vY = dx * s;
+    vX = -dy * s;
+
+    apply();
+    e.preventDefault();
+  };
+
+  const onUp = () => {
+    if (!isDown) return;
+    isDown = false;
+
+    // Wenn kaum Bewegung, float wieder aktivieren
+    const speed = Math.abs(vY) + Math.abs(vX);
+    if (speed < 0.4) {
+      orb.style.animationPlayState = "running";
+      return;
     }
 
-    if (orbWrap) {
+    // sonst inertia starten
+    startInertia();
+  };
+
+  // Pointer Events (iPad + Desktop)
+  orbWrap.addEventListener("pointerdown", onDown, { passive: false });
+  window.addEventListener("pointermove", onMove, { passive: false });
+  window.addEventListener("pointerup", onUp);
+}
       // micro background shift
       const shift = Math.min(16, y * 0.03);
       orbWrap.style.backgroundPosition = `${shift}px ${shift}px`;
