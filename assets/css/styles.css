@@ -665,3 +665,16 @@ animation:
 floatOrb 10s ease-in-out infinite,
 orbRotate 60s linear infinite;
 }
+
+@media (max-width: 600px){
+  .hero-wrap{ grid-template-columns: 1fr; }
+  .hero-visual{ margin-top: 14px; }
+
+  .orb{
+    left: 50%;
+    right: auto;
+    top: 40px;
+    transform: translateX(-50%);
+    animation: floatOrb 10s ease-in-out infinite, spin 26s linear infinite;
+  }
+}
